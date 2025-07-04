@@ -373,7 +373,7 @@ void Npc::doSayToPlayer(Player* player, const std::string& text)
 	}
 }
 
-void Npc::onPlayerTrade(Player* player, int32_t callback, uint16_t itemId, uint8_t count,
+void Npc::onPlayerTrade(Player* player, int32_t callback, uint16_t itemId, uint16_t count,
 						uint8_t amount, bool ignore/* = false*/, bool inBackpacks/* = false*/)
 {
 	if (!player) {
@@ -1250,7 +1250,7 @@ void NpcEventsHandler::onCreatureSay(Creature* creature, SpeakClasses type, cons
 }
 
 void NpcEventsHandler::onPlayerTrade(Player* player, int32_t callback, uint16_t itemid,
-							  uint8_t count, uint8_t amount, bool ignore, bool inBackpacks)
+							  uint16_t count, uint8_t amount, bool ignore, bool inBackpacks)
 {
 	if (callback == -1) {
 		return;

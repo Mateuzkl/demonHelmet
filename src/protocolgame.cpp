@@ -74,7 +74,22 @@ void ProtocolGame::AddItem(NetworkMessage &msg, uint16_t id, uint8_t count)
 	{
 		msg.addByte(0x00);
 		msg.addByte(0x00);
+	} else if (it.classification > 0) {
+		addByte(0x00); // item tier (0-10)
+	} else if (it.showClientCharges) {
+		add<uint32_t>(it.charges);
+		addByte(0x00); // boolean (is brand new)
+	} else if (it.showClientDuration) {
+		add<uint32_t>(it.decayTime);
+		addByte(0x00); // boolean (is brand new)
 	}
+	if (it.isPodium()) {
+		add<uint16_t>(0); // looktype
+		add<uint16_t>(0); // lookmount
+		addByte(2);       // direction
+		addByte(0x01);    // is visible (bool)
+	}
+
 	if (version < 1200 && it.isAnimation) {
 		msg.addByte(0xFE); // random phase (0xFF for async)
 	}
@@ -100,6 +115,9 @@ void ProtocolGame::AddItem(NetworkMessage &msg, const Item *item)
 	else if (it.isSplash() || it.isFluidContainer())
 	{
 		msg.addByte(fluidMap[item->getFluidType() & 7]);
+	}
+	} else if (version >= 1200 && it.classification > 0) {
+		addByte(0x00); // item tier (0-10)
 	}
 	else if (version >= 1200 && it.isContainer() && player->getOperatingSystem() <= CLIENTOS_NEW_MAC)
 	{
@@ -141,6 +159,13 @@ void ProtocolGame::AddItem(NetworkMessage &msg, const Item *item)
     	}
     	else
       		msg.addByte(0x00);
+	}
+	if (version >= 1280 && it.showClientCharges) {
+		add<uint32_t>(item->getCharges());
+		addByte(0); // boolean (is brand new)
+	} else if (version >= 1280 && it.showClientDuration) {
+		add<uint32_t>(item->getDuration() / 1000);
+		addByte(0); // boolean (is brand new)
 	}
 	if (version < 1200 && it.isAnimation) {
 		msg.addByte(0xFE); // random phase (0xFF for async)
@@ -1351,7 +1376,7 @@ void ProtocolGame::parsePlayerPurchase(NetworkMessage &msg)
 {
 	uint16_t id = msg.get<uint16_t>();
 	uint8_t count = msg.getByte();
-	uint8_t amount = msg.getByte();
+	uint16_t amount = msg.getByte();
 	bool ignoreCap = msg.getByte() != 0;
 	bool inBackpacks = msg.getByte() != 0;
 	addGameTaskTimed(DISPATCHER_TASK_EXPIRATION, &Game::playerPurchaseItem, player->getID(), id, count, amount, ignoreCap, inBackpacks);
@@ -1361,7 +1386,7 @@ void ProtocolGame::parsePlayerSale(NetworkMessage &msg)
 {
 	uint16_t id = msg.get<uint16_t>();
 	uint8_t count = msg.getByte();
-	uint8_t amount = msg.getByte();
+	uint16_t amount = msg.getByte();
 	bool ignoreEquipped = msg.getByte() != 0;
 	addGameTaskTimed(DISPATCHER_TASK_EXPIRATION, &Game::playerSellItem, player->getID(), id, count, amount, ignoreEquipped);
 }
@@ -3506,7 +3531,6 @@ void ProtocolGame::sendSaleItemList(const std::vector<ShopInfo> &shop, const std
 		msg.add<uint64_t>(newCurrency);
   	}
 	msg.addByte(0x7B);
-	msg.add<uint64_t>(version >= 1200 ? playerMoney : (playerMoney + player->getBankBalance()));
 
 	uint8_t itemsToSend = 0;
 	auto msgPosition = msg.getBufferPosition();
@@ -3529,7 +3553,7 @@ void ProtocolGame::sendSaleItemList(const std::vector<ShopInfo> &shop, const std
 		if (it != inventoryMap.end())
 		{
 			msg.addItemId(shopInfo.itemId);
-			msg.addByte(std::min<uint32_t>(it->second, std::numeric_limits<uint8_t>::max()));
+		msg.add<uint16_t>(std::min<uint16_t>(it->second, std::numeric_limits<uint16_t>::max()));
 			if (++itemsToSend >= 0xFF)
 			{
 				break;
@@ -4893,7 +4917,7 @@ void ProtocolGame::sendAddCreature(const Creature *creature, const Position &pos
 	}
 
 	if (version >= 1200)
-		sendLootContainers();
+	sendLootContainers();
 	sendBasicData();
 	initPreyData();
 

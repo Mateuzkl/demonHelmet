@@ -4769,7 +4769,7 @@
 		<attribute key="type" value="mailbox" />
 	</item>
 	<item id="2594" article="a" name="depot chest">
-		<attribute key="containerSize" value="30" />
+		<attribute key="containerSize" value="20" />
 	</item>
 	<item id="2595" article="a" name="parcel">
 		<attribute key="type" value="container" />
@@ -44716,6 +44716,9 @@
 	</item>
 
 	<item id="34073" name="unknown item" />
+	<item id="34571" article="a" name="depot box XVIII">
+		<attribute key="containerSize" value="32" />
+	</item>
 	<item id="34580" article="a" name="Maxxenius head">
 		<attribute key="loottype" value="creatureproduct" />
 		<attribute key="weight" value="210" />
@@ -48280,9 +48283,6 @@
 	</item>
 	<item id="36749" article="a" name="lump of reed flour dough">
 		<attribute key="weight" value="100" />
-	</item>
-	<item id="36750" article="a" name="depot box XVIII">
-		<attribute key="containerSize" value="32" />
 	</item>
 	<item fromid="36751" toid="36754" name="unknown"/>
 	<item id="36755" article="a" name="dead custodian">
@@ -52392,5 +52392,11 @@
 	<item id="40807" article="a" name="portable aqueduct">
 		<attribute key="duration" value="1" />
 		<attribute key="decayTo" value="40804" />
+	</item>
+	<item id="44714" name="depot box XIX">
+		<attribute key="containerSize" value="32" />
+	</item>
+	<item id="44715" name="depot box XX">
+		<attribute key="containerSize" value="32" />
 	</item>
 </items>

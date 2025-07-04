@@ -1119,6 +1119,11 @@ std::vector<std::pair<std::string, std::string>>
 			descriptions.emplace_back("Expiration", ss.str());
 		}
 
+		if (it.classification > 0) {
+			//TODO: tiers
+			s << std::endl << "Classification: " << static_cast<uint16_t>(it.classification) << " Tier: 0";
+		}
+
 		if (it.wieldInfo & WIELDINFO_PREMIUM) {
 			descriptions.emplace_back("Required", "Premium");
 		}
