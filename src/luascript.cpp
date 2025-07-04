@@ -1194,6 +1194,7 @@ void LuaScriptInterface::registerFunctions()
 	registerEnum(CONDITION_INVISIBLE)
 	registerEnum(CONDITION_LIGHT)
 	registerEnum(CONDITION_MANASHIELD)
+	registerEnum(CONDITION_MANASHIELD_BREAKABLE)
 	registerEnum(CONDITION_INFIGHT)
 	registerEnum(CONDITION_DRUNK)
 	registerEnum(CONDITION_EXHAUST)
@@ -1276,6 +1277,7 @@ void LuaScriptInterface::registerFunctions()
 	registerEnum(CONDITION_PARAM_SUBID)
 	registerEnum(CONDITION_PARAM_FIELD)
 	registerEnum(CONDITION_PARAM_DISABLE_DEFENSE)
+	registerEnum(CONDITION_PARAM_MANASHIELD_BREAKABLE);
 	registerEnum(CONDITION_PARAM_MANASHIELD)
 	registerEnum(CONDITION_PARAM_BUFF_DAMAGEDEALT)
 	registerEnum(CONDITION_PARAM_BUFF_DAMAGERECEIVED)
@@ -2136,6 +2138,7 @@ void LuaScriptInterface::registerFunctions()
 	registerEnumIn("configKeys", ConfigManager::STORE_IMAGES_URL)
 	registerEnumIn("configKeys", ConfigManager::ALLOW_CLIENT_OLD)
 	registerEnumIn("configKeys", ConfigManager::CLIENT_VERSION_STR)
+	registerEnumIn("configKeys", ConfigManager::MANASHIELD_BREAKABLE);
 
 	registerEnumIn("configKeys", ConfigManager::SQL_PORT)
 	registerEnumIn("configKeys", ConfigManager::MAX_PLAYERS)
@@ -2587,6 +2590,7 @@ void LuaScriptInterface::registerFunctions()
 	registerMethod("Player", "addMana", LuaScriptInterface::luaPlayerAddMana);
 	registerMethod("Player", "getMaxMana", LuaScriptInterface::luaPlayerGetMaxMana);
 	registerMethod("Player", "setMaxMana", LuaScriptInterface::luaPlayerSetMaxMana);
+	registerMethod("Player", "setManaShieldBar", LuaScriptInterface::luaPlayerSetManaShieldBar);
 	registerMethod("Player", "getManaSpent", LuaScriptInterface::luaPlayerGetManaSpent);
 	registerMethod("Player", "addManaSpent", LuaScriptInterface::luaPlayerAddManaSpent);
 
@@ -9558,6 +9562,21 @@ int LuaScriptInterface::luaPlayerSetMaxMana(lua_State* L)
 	if (player) {
 		player->manaMax = getNumber<int32_t>(L, 2);
 		player->mana = std::min<int32_t>(player->mana, player->manaMax);
+		player->sendStats();
+		pushBoolean(L, true);
+	} else {
+		lua_pushnil(L);
+	}
+	return 1;
+}
+
+int LuaScriptInterface::luaPlayerSetManaShieldBar(lua_State* L)
+{
+	// player:setManaShieldBar(capacity, value)
+	Player* player = getUserdata<Player>(L, 1);
+	if (player) {
+		player->setMaxManaShieldBar(getNumber<uint16_t>(L, 2));
+		player->setManaShieldBar(getNumber<uint16_t>(L, 3));
 		player->sendStats();
 		pushBoolean(L, true);
 	} else {
@@ -17624,40 +17643,27 @@ int LuaScriptInterface::luaSpellVocation(lua_State* L)
 {
 	// spell:vocation(vocation)
 	Spell* spell = getUserdata<Spell>(L, 1);
-	if (spell) {
-		if (lua_gettop(L) == 1) {
-			lua_createtable(L, 0, 0);
-			auto it = 0;
-			for (auto voc : spell->getVocMap()) {
-				++it;
-				std::string s = std::to_string(it);
-				char const *pchar = s.c_str();
-				std::string name = g_vocations.getVocation(voc.first)->getVocName();
-				setField(L, pchar, name);
-			}
-			setMetatable(L, -1, "Spell");
-		} else {
-			int parameters = lua_gettop(L) - 1; // - 1 because self is a parameter aswell, which we want to skip ofc
-			for (int i = 0; i < parameters; ++i) {
-				if (getString(L, 2 + i).find(";") != std::string::npos) {
-					std::vector<std::string> vocList = explodeString(getString(L, 2 + i), ";");
-					int32_t vocationId = g_vocations.getVocationId(vocList[0]);
-					if (vocList.size() > 0) {
-						if (vocList[1] == "true") {
-							spell->addVocMap(vocationId, true);
-						} else {
-							spell->addVocMap(vocationId, false);
-						}
-					}
-				} else {
-					int32_t vocationId = g_vocations.getVocationId(getString(L, 2 + i));
-					spell->addVocMap(vocationId, false);
-				}
-			}
-			pushBoolean(L, true);
+	if (!spell) {
+		lua_pushnil(L);
+		return 1;
+	}
+
+	if (lua_gettop(L) == 1) {
+		lua_createtable(L, 0, 0);
+		int i = 0;
+		for (auto& vocation : spell->getVocationSpellMap()) {
+			std::string name = g_vocations.getVocation(vocation.first)->getVocName();
+			pushString(L, name);
+			lua_rawseti(L, -2, ++i);
 		}
 	} else {
-		lua_pushnil(L);
+		int parameters = lua_gettop(L) - 1; // - 1 because self is a parameter aswell, which we want to skip ofc
+		for (int i = 0; i < parameters; ++i) {
+			std::string vocStr = getString(L, 2 + i);
+			auto vocList = explodeString(vocStr, ";");
+			spell->addVocationSpellMap(vocList[0], vocList.size() > 1 ? booleanString(vocList[1]) : false);
+		}
+		pushBoolean(L, true);
 	}
 	return 1;
 }

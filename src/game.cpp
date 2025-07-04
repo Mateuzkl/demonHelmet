@@ -5683,93 +5683,91 @@ bool Game::combatChangeHealth(Creature* attacker, Creature* target, CombatDamage
 			}
 		}
 
-		if (target->hasCondition(CONDITION_MANASHIELD) && damage.primary.type != COMBAT_UNDEFINEDDAMAGE) {
-      		int32_t manaDamage = std::min<int32_t>(target->getMana(), healthChange);
-			uint16_t manaShield = target->getManaShield();
-			if (manaShield > 0) {
-				if (manaShield > manaDamage) {
-					target->setManaShield(manaShield - manaDamage);
-					manaShield = manaShield - manaDamage;
-				} else {
-					manaDamage = manaShield;
-					target->removeCondition(CONDITION_MANASHIELD);
-					manaShield  = 0;
+		if (targetPlayer &&
+		    (target->hasCondition(CONDITION_MANASHIELD) || target->hasCondition(CONDITION_MANASHIELD_BREAKABLE)) &&
+		    damage.primary.type != COMBAT_UNDEFINEDDAMAGE) {
+			int32_t manaDamage = std::min<int32_t>(targetPlayer->getMana(), healthChange);
+			if (damage.origin != ORIGIN_NONE) {
+				const auto& events = target->getCreatureEvents(CREATURE_EVENT_MANACHANGE);
+				if (!events.empty()) {
+					for (CreatureEvent* creatureEvent : events) {
+						creatureEvent->executeManaChange(target, attacker, damage);
+					}
+					healthChange = damage.primary.value + damage.secondary.value;
+					if (healthChange == 0) {
+						return true;
+					}
+					manaDamage = std::min<int32_t>(targetPlayer->getMana(), healthChange);
 				}
 			}
-			if (manaDamage != 0) {
-				if (damage.origin != ORIGIN_NONE) {
-					const auto& events = target->getCreatureEvents(CREATURE_EVENT_MANACHANGE);
-					if (!events.empty()) {
-						for (CreatureEvent* creatureEvent : events) {
-							creatureEvent->executeManaChange(target, attacker, damage);
-						}
-						healthChange = damage.primary.value + damage.secondary.value;
-						if (healthChange == 0) {
-							return true;
-						}
-						manaDamage = std::min<int32_t>(target->getMana(), healthChange);
+
+			if (g_config.getBoolean(ConfigManager::MANASHIELD_BREAKABLE) && targetPlayer) {
+				if (ConditionManaShield* conditionManaShield = dynamic_cast<ConditionManaShield*>(
+				        targetPlayer->getCondition(CONDITION_MANASHIELD_BREAKABLE))) {
+					if (int32_t remainingManaDamage =
+					        conditionManaShield->onDamageTaken(targetPlayer, manaDamage) != 0) {
+						manaDamage -= remainingManaDamage;
+						targetPlayer->removeCondition(CONDITION_MANASHIELD_BREAKABLE);
 					}
 				}
+			}
 
-				target->drainMana(attacker, manaDamage);
-
-				if(target->getMana() == 0 && manaShield > 0) {
-					target->removeCondition(CONDITION_MANASHIELD);
+			if (manaDamage != 0) {
+				targetPlayer->drainMana(attacker, manaDamage);
+				if (targetPlayer->getMana() == 0) {
+					targetPlayer->removeCondition(CONDITION_MANASHIELD_BREAKABLE);
 				}
 
+				map.getSpectators(spectators, targetPos, true, true);
 				addMagicEffect(spectators, targetPos, CONST_ME_LOSEENERGY);
-
-				std::stringstream ss;
-
-				std::string damageString = std::to_string(manaDamage);
-
 				std::string spectatorMessage;
 
 				message.primary.value = manaDamage;
 				message.primary.color = TEXTCOLOR_BLUE;
 
 				for (Creature* spectator : spectators) {
-					Player* tmpPlayer = spectator->getPlayer();
-					if (tmpPlayer->getPosition().z != targetPos.z) {
+					assert(dynamic_cast<Player*>(spectator) != nullptr);
+
+					Player* spectatorPlayer = static_cast<Player*>(spectator);
+					if (spectatorPlayer->getPosition().z != targetPos.z) {
 						continue;
 					}
 
-					if (tmpPlayer == attackerPlayer && attackerPlayer != targetPlayer) {
-						ss.str({});
-						ss << ucfirst(target->getNameDescription()) << " loses " << damageString + " mana due to your attack.";
+					if (spectatorPlayer == attackerPlayer && attackerPlayer != targetPlayer) {
 						message.type = MESSAGE_DAMAGE_DEALT;
-						message.text = ss.str();
-					} else if (tmpPlayer == targetPlayer) {
-						ss.str({});
-						ss << "You lose " << damageString << " mana";
-						if (!attacker) {
-							ss << '.';
-						} else if (targetPlayer == attackerPlayer) {
-							ss << " due to your own attack.";
-						} else {
-							ss << " due to an attack by " << attacker->getNameDescription() << '.';
-						}
+						message.text = fmt::format("{:s} loses {:d} mana due to your attack.",
+						                           target->getNameDescription(), manaDamage);
+						message.text[0] = std::toupper(message.text[0]);
+					} else if (spectatorPlayer == targetPlayer) {
 						message.type = MESSAGE_DAMAGE_RECEIVED;
-						message.text = ss.str();
-					} else {
-						if (spectatorMessage.empty()) {
-							ss.str({});
-							ss << ucfirst(target->getNameDescription()) << " loses " << damageString + " mana";
-							if (attacker) {
-								ss << " due to ";
-								if (attacker == target) {
-									ss << (targetPlayer ? (targetPlayer->getSex() == PLAYERSEX_FEMALE ? "her own attack" : "his own attack") : "its own attack");
-								} else {
-									ss << "an attack by " << attacker->getNameDescription();
-								}
-							}
-							ss << '.';
-							spectatorMessage = ss.str();
+						if (!attacker) {
+							message.text = fmt::format("You lose {:d} mana.", manaDamage);
+						} else if (targetPlayer == attackerPlayer) {
+							message.text = fmt::format("You lose {:d} mana due to your own attack.", manaDamage);
+						} else {
+							message.text = fmt::format("You lose {:d} mana due to an attack by {:s}.", manaDamage,
+							                           attacker->getNameDescription());
 						}
+					} else {
 						message.type = MESSAGE_DAMAGE_OTHERS;
+						if (spectatorMessage.empty()) {
+							if (!attacker) {
+								spectatorMessage =
+								    fmt::format("{:s} loses {:d} mana.", target->getNameDescription(), manaDamage);
+							} else if (attacker == target) {
+								spectatorMessage = fmt::format(
+								    "{:s} loses {:d} mana due to {:s} own attack.", target->getNameDescription(),
+								    manaDamage, targetPlayer->getSex() == PLAYERSEX_FEMALE ? "her" : "his");
+							} else {
+								spectatorMessage = fmt::format("{:s} loses {:d} mana due to an attack by {:s}.",
+								                               target->getNameDescription(), manaDamage,
+								                               attacker->getNameDescription());
+							}
+							spectatorMessage[0] = std::toupper(spectatorMessage[0]);
+						}
 						message.text = spectatorMessage;
 					}
-					tmpPlayer->sendTextMessage(message);
+					spectatorPlayer->sendTextMessage(message);
 				}
 
 				damage.primary.value -= manaDamage;

@@ -20,8 +20,11 @@
 #ifndef FS_VOCATION_H_ADCAA356C0DB44CEBA994A0D678EC92D
 #define FS_VOCATION_H_ADCAA356C0DB44CEBA994A0D678EC92D
 
+#include "configmanager.h"
 #include "enums.h"
 #include "item.h"
+
+extern ConfigManager g_config;
 
 class Vocation
 {
@@ -86,9 +89,13 @@ class Vocation
 			return fromVocation;
 		}
 
-    bool getMagicShield() const {
-      return magicShield;
-    }
+	bool getMagicShield() const
+	{
+		if (!g_config.getBoolean(ConfigManager::MANASHIELD_BREAKABLE)) {
+			return false;
+		}
+		return magicShield;
+	}
 
 		float meleeDamageMultiplier = 1.0f;
 		float distDamageMultiplier = 1.0f;
@@ -119,7 +126,7 @@ class Vocation
 		uint32_t baseSpeed = 220;
 		uint16_t id;
 
-    bool magicShield = false;
+		bool magicShield = false;
 
 		uint16_t gainSoulTicks = 120;
 

@@ -43,14 +43,17 @@ maxItem = 2000
 maxContainer = 100
 
 --- Version
-clientVersion = 1287
-clientVersionStr = "12.87"
+clientVersion = 1291
+clientVersionStr = "12.91"
 allowClientOld = true
 
 -- Depot Limit
 freeDepotLimit = 2000
 premiumDepotLimit = 10000
 depotBoxes = 18
+
+-- Breakable Mana Shield
+useBreakableManaShield = true
 
 -- GameStore
 gamestoreByModules = true

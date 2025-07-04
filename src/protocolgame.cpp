@@ -1764,6 +1764,7 @@ void ProtocolGame::parseBestiarysendMonsterData(NetworkMessage &msg)
 		newmsg.add<uint32_t>(mtype->info.experience);
 		newmsg.add<uint16_t>(mtype->info.baseSpeed);
 		newmsg.add<uint16_t>(mtype->info.armor);
+		newmsg.add<double>(0);
 	}
 
 	if (currentLevel > 2)
@@ -2459,10 +2460,10 @@ void ProtocolGame::sendCyclopediaCharacterGeneralStats()
 	msg.add<uint16_t>(0);
 	// canBuyXpBoost
 	msg.addByte(0x00);
-	msg.add<uint16_t>(std::min<int32_t>(player->getHealth(), std::numeric_limits<uint16_t>::max()));
-	msg.add<uint16_t>(std::min<int32_t>(player->getMaxHealth(), std::numeric_limits<uint16_t>::max()));
-	msg.add<uint16_t>(std::min<int32_t>(player->getMana(), std::numeric_limits<uint16_t>::max()));
-	msg.add<uint16_t>(std::min<int32_t>(player->getMaxMana(), std::numeric_limits<uint16_t>::max()));
+	msg.add<uint32_t>(player->getHealth());
+	msg.add<uint32_t>(player->getMaxHealth());
+	msg.add<uint32_t>(player->getMana());
+	msg.add<uint32_t>(player->getMaxMana());
 	msg.addByte(player->getSoul());
 	msg.add<uint16_t>(player->getStaminaMinutes());
 
@@ -2627,6 +2628,7 @@ void ProtocolGame::sendCyclopediaCharacterCombatStats()
 	
 	msg.add<uint16_t>(player->getArmor());
 	msg.add<uint16_t>(player->getDefense());
+	msg.add<double>(0);
 
 	uint8_t combats = 0;
 	auto startCombats = msg.getBufferPosition();
@@ -3013,14 +3015,13 @@ void ProtocolGame::sendBasicData()
 		msg.addByte(1); // has reached Main (allow player to open Prey window)
 	}
 
-	std::list<uint16_t> spellsList = g_spells->getSpellsByVocation(player->getVocationId());
-	msg.add<uint16_t>(spellsList.size());
-	for (uint16_t sid : spellsList)
-	{
-		msg.addByte(sid);
+	// unlock spells on action bar
+	msg.add<uint16_t>(0xFF);
+	for (uint8_t spellId = 0x00; spellId < 0xFF; spellId++) {
+		msg.add<uint16_t>(spellId);
 	}
-	if (version >= 1200)
-		msg.addByte(player->getVocation()->getMagicShield()); // bool - determine whether magic shield is active or not
+
+	msg.addByte(player->getVocation()->getMagicShield()); // is magic shield active (bool)
 	writeToOutputBuffer(msg);
 }
 
@@ -5337,7 +5338,7 @@ void ProtocolGame::sendSpellCooldown(uint8_t spellId, uint32_t time)
 	if (version < 1200 && spellId >= 170) {
     spellId = 150;
  	}
-	msg.addByte(spellId);
+	msg.add<uint16_t>(spellId);
 	msg.add<uint32_t>(time);
 	writeToOutputBuffer(msg);
 }
@@ -5770,8 +5771,8 @@ void ProtocolGame::AddPlayerStats(NetworkMessage &msg)
 {
 	msg.addByte(0xA0);
 
-	msg.add<uint16_t>(std::min<int32_t>(player->getHealth(), std::numeric_limits<uint16_t>::max()));
-	msg.add<uint16_t>(std::min<int32_t>(player->getMaxHealth(), std::numeric_limits<uint16_t>::max()));
+	msg.add<uint32_t>(static_cast<uint32_t>(player->getHealth()));
+	msg.add<uint32_t>(static_cast<uint32_t>(player->getMaxHealth()));
 
 	msg.add<uint32_t>(player->getFreeCapacity());
 	if (version < 1200) {
@@ -5791,8 +5792,8 @@ void ProtocolGame::AddPlayerStats(NetworkMessage &msg)
 	msg.add<uint16_t>(player->getStoreXpBoost()); // xp boost
 	msg.add<uint16_t>(player->getStaminaXpBoost()); // stamina multiplier (100 = 1.0x)
 
-	msg.add<uint16_t>(std::min<int32_t>(player->getMana(), std::numeric_limits<uint16_t>::max()));
-	msg.add<uint16_t>(std::min<int32_t>(player->getMaxMana(), std::numeric_limits<uint16_t>::max()));
+	msg.add<uint32_t>(static_cast<uint32_t>(player->getMana()));
+	msg.add<uint32_t>(static_cast<uint32_t>(player->getMaxMana()));
 
 	if (version < 1200) {
 		msg.addByte(std::min<uint32_t>(player->getMagicLevel(), std::numeric_limits<uint8_t>::max()));
@@ -5815,8 +5816,14 @@ void ProtocolGame::AddPlayerStats(NetworkMessage &msg)
 	msg.addByte(1); // enables exp boost in the store
 
 	if (version >= 1200) {
-		msg.add<uint16_t>(player->getManaShield());  // remaining mana shield
-		msg.add<uint16_t>(player->getMaxManaShield());  // total mana shield
+		if (ConditionManaShield* conditionManaShield =
+				dynamic_cast<ConditionManaShield*>(player->getCondition(CONDITION_MANASHIELD_BREAKABLE))) {
+			msg.add<uint16_t>(conditionManaShield->getManaShield());    // remaining mana shield
+			msg.add<uint16_t>(conditionManaShield->getMaxManaShield()); // total mana shield
+		} else {
+			msg.add<uint16_t>(0); // remaining mana shield
+			msg.add<uint16_t>(0); // total mana shield
+		}
 	}
 }
 
@@ -5853,21 +5860,19 @@ void ProtocolGame::AddPlayerSkills(NetworkMessage &msg)
 		msg.add<uint16_t>(player->getBaseSkill(i));
 	}
 
+	msg.addByte(0); // element magic level
+	// structure:
+	// u8 client element id
+	// u16 bonus element ml
 	// fatal, dodge, momentum
-	msg.add<uint16_t>(0);
-	msg.add<uint16_t>(0);
-
-	msg.add<uint16_t>(0);
-	msg.add<uint16_t>(0);
-
-	msg.add<uint16_t>(0);
-	msg.add<uint16_t>(0);
-
-	// used for imbuement (Feather)
-	if (version >= 1200) {
-		msg.add<uint32_t>(player->getCapacity()); // total capacity
-		msg.add<uint32_t>(player->getBaseCapacity()); // base total capacity
+	for (int i = 0; i < 3; ++i) {
+		msg.add<uint16_t>(0);
+		msg.add<uint16_t>(0);
 	}
+
+	uint32_t capacityValue = player->hasFlag(PlayerFlag_HasInfiniteCapacity) ? 1000000 : player->getCapacity();
+	msg.add<uint32_t>(capacityValue); // base + bonus capacity
+	msg.add<uint32_t>(capacityValue); // base capacity
 }
 
 void ProtocolGame::AddOutfit(NetworkMessage &msg, const Outfit_t &outfit, bool addMount /* = true*/)

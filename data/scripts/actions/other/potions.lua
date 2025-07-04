@@ -26,11 +26,11 @@ local exhaust = Condition(CONDITION_EXHAUST_HEAL)
 exhaust:setParameter(CONDITION_PARAM_TICKS, (configManager.getNumber(configKeys.EX_ACTIONS_DELAY_INTERVAL) - 1000))
 -- 1000 - 100 due to exact condition timing. -100 doesn't hurt us, and players don't have reminding ~50ms exhaustion.
 
-local function magicshield(player)
-local condition = Condition(CONDITION_MANASHIELD)
-condition:setParameter(CONDITION_PARAM_TICKS, 60000)
-condition:setParameter(CONDITION_PARAM_MANASHIELD, math.min(player:getMaxMana(), 300 + 7.6 * player:getLevel() + 7 * player:getMagicLevel()))
-player:addCondition(condition)
+local manaShield = Condition(CONDITION_MANASHIELD_BREAKABLE)
+manaShield:setParameter(CONDITION_PARAM_TICKS, 3 * 60 * 1000)
+
+local function magicShieldCapacity(player)
+	manaShield:setParameter(CONDITION_PARAM_MANASHIELD_BREAKABLE, math.min(player:getMaxMana(), 300 + 7.6 * player:getLevel() + 7 * player:getMagicLevel()))
 end
 
 local potions = {
@@ -69,14 +69,12 @@ local potions = {
 		text = "You feel more accurate."
 	},
 	[40398] = {
-		vocations = {
-			VOCATION.CLIENT_ID.SORCERER,
-			VOCATION.CLIENT_ID.DRUID
-		},
+		condition = manaShield,
+		vocations = {1, 2, 5, 6},
 		level = 14,
-		func = magicshield,
 		effect = CONST_ME_ENERGYAREA,
 		description = "Only sorcerers and druids of level 14 or above may drink this potion.",
+		capacity = magicShieldCapacity
 	},
 	[7588] = {
 		health = {
@@ -277,6 +275,9 @@ function flaskPotion.onUse(player, item, fromPosition, target, toPosition, isHot
 	end
 
 	if potion.condition then
+		if potion.capacity then
+			potion.capacity(player)
+		end
 		player:addCondition(potion.condition)
 		player:say(potion.text, TALKTYPE_MONSTER_SAY)
 		player:getPosition():sendMagicEffect(potion.effect)

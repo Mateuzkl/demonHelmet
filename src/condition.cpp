@@ -188,6 +188,9 @@ Condition* Condition::createCondition(ConditionId_t id, ConditionType_t type, in
     	case CONDITION_MANASHIELD:
       		return new ConditionManaShield(id, type, ticks, buff, subId);
 
+		case CONDITION_MANASHIELD_BREAKABLE:
+			return new ConditionManaShield(id, type, ticks, buff, subId);
+
 		case CONDITION_INFIGHT:
 		case CONDITION_DRUNK:
 		case CONDITION_EXHAUST:
@@ -1858,4 +1861,108 @@ bool ConditionSpellGroupCooldown::startCondition(Creature* creature)
 		}
 	}
 	return true;
+}
+
+bool ConditionManaShield::startCondition(Creature* creature)
+{
+	if (!Condition::startCondition(creature)) {
+		return false;
+	}
+
+	if (Player* player = creature->getPlayer()) {
+		const auto& conditionManaShield = static_cast<const ConditionManaShield&>(*this);
+		manaShield = conditionManaShield.manaShield;
+		maxManaShield = conditionManaShield.manaShield;
+		player->sendStats();
+		return true;
+	}
+	return false;
+}
+
+void ConditionManaShield::endCondition(Creature* creature)
+{
+	if (Player* player = creature->getPlayer()) {
+		player->sendStats();
+	}
+}
+
+void ConditionManaShield::addCondition(Creature* creature, const Condition* addCondition)
+{
+	if (Player* player = creature->getPlayer()) {
+		endCondition(player);
+		setTicks(addCondition->getTicks());
+
+		const auto& conditionManaShield = static_cast<const ConditionManaShield&>(*addCondition);
+		manaShield = conditionManaShield.manaShield;
+		maxManaShield = conditionManaShield.manaShield;
+		player->sendStats();
+	}
+}
+
+bool ConditionManaShield::unserializeProp(ConditionAttr_t attr, PropStream& propStream)
+{
+	if (attr == CONDITIONATTR_MANASHIELD_BREAKABLE_MANA) {
+		return propStream.read<uint16_t>(manaShield);
+	}
+
+	if (attr == CONDITIONATTR_MANASHIELD_BREAKABLE_MAXMANA) {
+		return propStream.read<uint16_t>(maxManaShield);
+	}
+	return Condition::unserializeProp(attr, propStream);
+}
+
+int32_t ConditionManaShield::onDamageTaken(Player* player, int32_t manaChange)
+{
+	if (!player) {
+		return 0;
+	}
+
+	if (manaChange > manaShield) {
+		return manaChange - manaShield;
+	}
+
+	manaShield -= manaChange;
+
+	player->sendStats();
+	return 0;
+}
+
+void ConditionManaShield::serialize(PropWriteStream& propWriteStream)
+{
+	Condition::serialize(propWriteStream);
+
+	propWriteStream.write<uint8_t>(CONDITIONATTR_MANASHIELD_BREAKABLE_MANA);
+	propWriteStream.write<uint16_t>(manaShield);
+	propWriteStream.write<uint8_t>(CONDITIONATTR_MANASHIELD_BREAKABLE_MAXMANA);
+	propWriteStream.write<uint16_t>(maxManaShield);
+}
+
+bool ConditionManaShield::setParam(ConditionParam_t param, int32_t value)
+{
+	bool ret = Condition::setParam(param, value);
+
+	switch (param) {
+		case CONDITION_PARAM_MANASHIELD_BREAKABLE:
+			manaShield = value;
+			return true;
+
+		default:
+			return ret;
+	}
+}
+
+uint32_t ConditionManaShield::getIcons() const
+{
+	uint32_t icons = Condition::getIcons();
+
+	switch (conditionType) {
+		case CONDITION_MANASHIELD_BREAKABLE:
+			icons |= ICON_MANASHIELD_BREAKABLE;
+			break;
+
+		default:
+			break;
+	}
+
+	return icons;
 }

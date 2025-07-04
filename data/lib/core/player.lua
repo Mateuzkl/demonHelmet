@@ -292,6 +292,17 @@ function Player.getMarriageDescription(thing)
 	return descr
 end
 
+function Player.disableLoginMusic(self)
+	local msg = NetworkMessage()
+	msg:addByte(0x85)
+	msg:addByte(0x01)
+	msg:addByte(0x00)
+	msg:addByte(0x00)
+	msg:sendToPlayer(self)
+	msg:delete()
+	return true
+end
+
 function Player.sendWeatherEffect(self, groundEffect, fallEffect, thunderEffect)
     local position, random = self:getPosition(), math.random
     position.x = position.x + random(-7, 7)

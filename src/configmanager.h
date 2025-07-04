@@ -61,6 +61,7 @@ class ConfigManager
 			ONLY_PREMIUM_ACCOUNT,
 			ALLOW_CLIENT_OLD,
 			MAP_CUSTOM_ENABLED,
+			MANASHIELD_BREAKABLE,
 
 			LAST_BOOLEAN_CONFIG /* this must be the last one */
 		};

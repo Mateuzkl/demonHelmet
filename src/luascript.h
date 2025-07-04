@@ -923,6 +923,7 @@ class LuaScriptInterface
 		static int luaPlayerAddMana(lua_State* L);
 		static int luaPlayerGetMaxMana(lua_State* L);
 		static int luaPlayerSetMaxMana(lua_State* L);
+		static int luaPlayerSetManaShieldBar(lua_State* L);
 		static int luaPlayerGetManaSpent(lua_State* L);
 		static int luaPlayerAddManaSpent(lua_State* L);
 

@@ -142,6 +142,7 @@ function playerLogin.onLogin(player)
 	DailyReward.init(playerId)
 
 	player:loadSpecialStorage()
+	player:disableLoginMusic()
 
 	if player:getGroup():getId() >= GROUP_TYPE_GAMEMASTER then
 		player:setGhostMode(true)

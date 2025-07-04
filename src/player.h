@@ -667,6 +667,11 @@ class Player final : public Creature, public Cylinder
 			return std::max<int32_t>(0, manaMax + varStats[STAT_MAXMANAPOINTS]);
 		}
 
+		uint16_t getManaShieldBar() const { return manaShieldBar; }
+		void setManaShieldBar(uint16_t value) { manaShieldBar = value; }
+		uint16_t getMaxManaShieldBar() const { return maxManaShieldBar; }
+		void setMaxManaShieldBar(uint16_t value) { maxManaShieldBar = value; }
+
 		Item* getInventoryItem(slots_t slot) const;
 
 		bool isItemAbilityEnabled(slots_t slot) const {
@@ -1963,6 +1968,8 @@ class Player final : public Creature, public Cylinder
 		uint32_t windowTextId = 0;
 		uint32_t editListId = 0;
 		uint32_t manaMax = 0;
+		uint16_t manaShieldBar = 0;
+		uint16_t maxManaShieldBar = 0;
 		int32_t varSkills[SKILL_LAST + 1] = {};
 		int32_t varStats[STAT_LAST + 1] = {};
 		int32_t purchaseCallback = -1;
