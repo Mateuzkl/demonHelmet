@@ -2067,6 +2067,7 @@ class Player final : public Creature, public Cylinder
 		bool inEventMovePush = false;
 		bool supplyStashAvailable = false;
 		bool exerciseTraining = false;
+		bool randomizeMount = false;
 
 		static uint32_t playerAutoID;
 

@@ -970,7 +970,7 @@ DepotChest* Player::getDepotChest(uint32_t depotId, bool autoCreate)
 		depotChest = new DepotChest(ITEM_DEPOT_NULL + depotId);
 	}
 	else {
-		depotChest = new DepotChest(ITEM_DEPOT_XVIII);
+		depotChest = new DepotChest(ITEM_DEPOT_XVII);
 	}
 
 	depotChest->incrementReferenceCounter();

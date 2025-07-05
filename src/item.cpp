@@ -1121,7 +1121,7 @@ std::vector<std::pair<std::string, std::string>>
 
 		if (it.classification > 0) {
 			//TODO: tiers
-			s << std::endl << "Classification: " << static_cast<uint16_t>(it.classification) << " Tier: 0";
+			ss << std::endl << "Classification: " << static_cast<uint16_t>(it.classification) << " Tier: 0";
 		}
 
 		if (it.wieldInfo & WIELDINFO_PREMIUM) {

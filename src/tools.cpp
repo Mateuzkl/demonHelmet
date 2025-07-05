@@ -608,7 +608,7 @@ MagicEffectNames magicEffectNames = {
 	{"faegoing",		CONST_ME_FAEGOING},
 	{"bigcloudssinglespace",	CONST_ME_BIGCLOUDSSINGLESPACE},
 	{"stonessinglespace",	CONST_ME_STONESSINGLESPACE},
-	{"blueghost",		CONST_ME_BLUEGHOST},
+	{"blueghost",		CONST_ME_BLUE_GHOST},
 	{"pointofinterest",	CONST_ME_POINTOFINTEREST},
 	{"mapeffect",		CONST_ME_MAPEFFECT},
 	{"pinkspark",		CONST_ME_PINKSPARK},

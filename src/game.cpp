@@ -20,6 +20,7 @@
 #include "otpch.h"
 
 #include "pugicast.h"
+#include <fmt/format.h>
 
 #include "actions.h"
 #include "bed.h"
@@ -7483,7 +7484,7 @@ void Game::playerCancelMarketOffer(uint32_t playerId, uint32_t timestamp, uint16
 	}
 
 	if (offer.type == MARKETACTION_BUY) {
-		player->setBankBalance( player->getBankBalance() += offer.price * offer.amount);
+		player->setBankBalance(player->getBankBalance() + offer.price * offer.amount);
 		player->sendMarketEnter(player->getLastDepotId());
 	} else {
 		const ItemType& it = Item::items[offer.itemId];

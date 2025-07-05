@@ -67,8 +67,18 @@ uint32_t IOLoginData::gameworldAuthentication(const std::string& accountName, co
     return 0;
   }
 
-  if (transformToSHA1(password) != result->getString("password")) {
-    std::cout << "[IOLoginData::gameworldAuthentication] Wrong Password! " << transformToSHA1(password) << "!=" << result->getString("password") << std::endl;
+  // Check if password is already a SHA1 hash (40 hex characters)
+  std::string passwordHash;
+  if (password.length() == 40 && password.find_first_not_of("0123456789abcdefABCDEF") == std::string::npos) {
+    // Password is already a SHA1 hash
+    passwordHash = password;
+  } else {
+    // Password is plain text, hash it
+    passwordHash = transformToSHA1(password);
+  }
+  
+  if (passwordHash != result->getString("password")) {
+    std::cout << "[IOLoginData::gameworldAuthentication] Wrong Password! " << passwordHash << "!=" << result->getString("password") << std::endl;
     return 0;
   }
 

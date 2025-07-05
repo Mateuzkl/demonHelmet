@@ -82,6 +82,7 @@ enum ItemTypes_t {
 	ITEM_TYPE_RETRIEVE,
 	ITEM_TYPE_GOLD,
 	ITEM_TYPE_UNASSIGNED,
+	ITEM_TYPE_PODIUM,
 
 	ITEM_TYPE_LAST,
 };
@@ -196,6 +197,9 @@ class ItemType
 		}
 		bool isFilledBath() const {
 			return (id == 29313);
+		}
+		bool isPodium() const {
+			return (type == ITEM_TYPE_PODIUM);
 		}
 
 		Abilities& getAbilities() {

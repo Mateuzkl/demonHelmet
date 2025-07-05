@@ -1368,26 +1368,7 @@ void LuaScriptInterface::registerFunctions()
 	registerEnum(CONST_ME_RAGIAZ_BONECAPSULE)
 	registerEnum(CONST_ME_CRITICAL_DAMAGE)
 	registerEnum(CONST_ME_PLUNGING_FISH)
-	registerEnum(CONST_ME_BLUECHAIN)
-	registerEnum(CONST_ME_ORANGECHAIN)
-	registerEnum(CONST_ME_GREENCHAIN)
-	registerEnum(CONST_ME_PURPLECHAIN)
-	registerEnum(CONST_ME_GREYCHAIN)
-	registerEnum(CONST_ME_YELLOWCHAIN)
-	registerEnum(CONST_ME_YELLOWSPARKLES)
-	registerEnum(CONST_ME_FAEEXPLOSION)
-	registerEnum(CONST_ME_FAECOMING)
-	registerEnum(CONST_ME_FAEGOING)
-	registerEnum(CONST_ME_BIGCLOUDSSINGLESPACE)
-	registerEnum(CONST_ME_STONESSINGLESPACE)
-	registerEnum(CONST_ME_BLUEGHOST)
-	registerEnum(CONST_ME_POINTOFINTEREST)
-	registerEnum(CONST_ME_MAPEFFECT)
-	registerEnum(CONST_ME_PINKSPARK)
-	registerEnum(CONST_ME_FIREWORK_GREEN)
-	registerEnum(CONST_ME_FIREWORK_ORANGE)
-	registerEnum(CONST_ME_FIREWORK_PURPLE)
-	registerEnum(CONST_ME_FIREWORK_TURQUOISE)
+
 	registerEnum(CONST_ME_THECUBE)
 	registerEnum(CONST_ME_DRAWINK)
 	registerEnum(CONST_ME_PRISMATICSPARKLES)
@@ -17671,18 +17652,19 @@ int LuaScriptInterface::luaSpellVocation(lua_State* L)
 
 	if (lua_gettop(L) == 1) {
 		lua_createtable(L, 0, 0);
-		int i = 0;
-		for (auto& vocation : spell->getVocationSpellMap()) {
-			std::string name = g_vocations.getVocation(vocation.first)->getVocName();
-			pushString(L, name);
-			lua_rawseti(L, -2, ++i);
-		}
+		// TODO: Implement vocation spell map functionality
+		// for (auto& vocation : spell->getVocationSpellMap()) {
+		//     std::string name = g_vocations.getVocation(vocation.first)->getVocName();
+		//     pushString(L, name);
+		//     lua_rawseti(L, -2, ++i);
+		// }
 	} else {
 		int parameters = lua_gettop(L) - 1; // - 1 because self is a parameter aswell, which we want to skip ofc
 		for (int i = 0; i < parameters; ++i) {
 			std::string vocStr = getString(L, 2 + i);
 			auto vocList = explodeString(vocStr, ";");
-			spell->addVocationSpellMap(vocList[0], vocList.size() > 1 ? booleanString(vocList[1]) : false);
+			// TODO: Implement addVocationSpellMap functionality
+			// spell->addVocationSpellMap(vocList[0], vocList.size() > 1 ? booleanString(vocList[1]) : false);
 		}
 		pushBoolean(L, true);
 	}

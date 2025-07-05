@@ -132,6 +132,8 @@ FILELOADER_ERRORS Items::loadFromOtb(const std::string& file)
 		}
 	}
 
+	std::cout << "[Debug - Items::loadFromOtb] majorVersion: " << majorVersion << ", minorVersion: " << minorVersion << ", buildNumber: " << buildNumber << std::endl;
+	
 	if (majorVersion == 0xFFFFFFFF) {
 		std::cout << "[Warning - Items::loadFromOtb] items.otb using generic client version." << std::endl;
 	} else if (majorVersion != 3) {
@@ -140,6 +142,8 @@ FILELOADER_ERRORS Items::loadFromOtb(const std::string& file)
 	} else if (minorVersion < CLIENT_VERSION_1140) {
 		std::cout << "A newer version of items.otb is required." << std::endl;
 		return ERROR_INVALID_FORMAT;
+	} else if (minorVersion < CLIENT_VERSION_1310) {
+		std::cout << "[Warning - Items::loadFromOtb] items.otb version " << minorVersion << " is older than client version " << CLIENT_VERSION_1310 << ", but will be accepted." << std::endl;
 	}
 
 	for (auto & itemNode : root.children) {
@@ -243,11 +247,11 @@ FILELOADER_ERRORS Items::loadFromOtb(const std::string& file)
 
 				case ITEM_ATTR_CLASS: {
 					if (datalen != sizeof(uint8_t)) {
-						return false;
+						return ERROR_INVALID_FORMAT;
 					}
 
 					if (!stream.read<uint8_t>(classification)) {
-						return false;
+						return ERROR_INVALID_FORMAT;
 					}
 					break;
 				}
