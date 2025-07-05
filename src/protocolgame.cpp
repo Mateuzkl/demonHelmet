@@ -4754,15 +4754,14 @@
  
  void ProtocolGame::sendAddCreature(const Creature *creature, const Position &pos, int32_t stackpos, bool isLogin)
  {
-	 if (!canSee(pos))
-	 {
+	 std::cout << "[ProtocolGame::sendAddCreature] Starting login sequence..." << std::endl;
+	 
+	 if (!canSee(pos)) {
 		 return;
 	 }
  
-	 if (creature != player)
-	 {
-		 if (stackpos >= 10)
-		 {
+	 if (creature != player) {
+		 if (stackpos >= 10) {
 			 return;
 		 }
  
@@ -4777,20 +4776,15 @@
 		 AddCreature(msg, creature, known, removedKnown);
 		 writeToOutputBuffer(msg);
  
-		 if (isLogin)
-		 {
-			 if (const Player *creaturePlayer = creature->getPlayer())
-			 {
+		 if (isLogin) {
+			 if (const Player *creaturePlayer = creature->getPlayer()) {
 				 if (!creaturePlayer->isAccessPlayer() ||
 					 creaturePlayer->getAccountType() == account::ACCOUNT_TYPE_NORMAL)
 					 sendMagicEffect(pos, CONST_ME_TELEPORT);
-			 }
-			 else
-			 {
+			 } else {
 				 sendMagicEffect(pos, CONST_ME_TELEPORT);
 			 }
 		 }
- 
 		 return;
 	 }
  
@@ -4805,12 +4799,9 @@
 	 msg.addDouble(Creature::speedC, 3);
  
 	 // can report bugs?
-	 if (player->getAccountType() >= account::ACCOUNT_TYPE_NORMAL)
-	 {
+	 if (player->getAccountType() >= account::ACCOUNT_TYPE_NORMAL) {
 		 msg.addByte(0x01);
-	 }
-	 else
-	 {
+	 } else {
 		 msg.addByte(0x00);
 	 }
  
@@ -4822,118 +4813,114 @@
  
 	 if (version >= 1200) {
 		 msg.addByte(shouldAddExivaRestrictions ? 0x01 : 0x00); // exiva button enabled
-	 }
- 
-	 if (version >= 1200) {
 		 msg.addByte(0x00); // tournament button enabled
 	 }
  
 	 writeToOutputBuffer(msg);
  
-	 if (version >= 1200)
+	 if (version >= 1200) {
+		 // Ordem correta dos pacotes para client 12.91
 		 sendTibiaTime(g_game.getLightHour());
-	 sendPendingStateEntered();
-	 sendEnterWorld();
-	 sendMapDescription(pos);
-	 loggedIn = true;
+		 sendPendingStateEntered();
+		 sendEnterWorld();
+		 sendMapDescription(pos);
  
-	 if (isLogin)
-	 {
-		 sendMagicEffect(pos, CONST_ME_TELEPORT);
-	 }
- 
-	 for (int i = CONST_SLOT_FIRST; i <= CONST_SLOT_LAST; ++i)
-	 {
-		 sendInventoryItem(static_cast<slots_t>(i), player->getInventoryItem(static_cast<slots_t>(i)));
-	 }
- 
-	 sendStats();
-	 sendSkills();
-	 sendBlessStatus();
- 
-	 sendPremiumTrigger();
-	 sendStoreHighlight();
- 
-	 if (version >= 1200) {
-		 sendItemsPrice();
-	 }
- 
-	 //gameworld light-settings
-	 sendWorldLight(g_game.getWorldLightInfo());
- 
-	 //player light level
-	 sendCreatureLight(creature);
- 
-	 // tiers for forge and market
-	 if (version >= 1200) {
-	 sendItemClasses();
-	 }
- 
-	 const std::forward_list<VIPEntry> &vipEntries = IOLoginData::getVIPEntries(player->getAccount());
- 
-	 if (player->isAccessPlayer())
-	 {
-		 for (const VIPEntry &entry : vipEntries)
-		 {
-			 VipStatus_t vipStatus;
- 
-			 Player *vipPlayer = g_game.getPlayerByGUID(entry.guid);
-			 if (!vipPlayer)
-			 {
-				 vipStatus = VIPSTATUS_OFFLINE;
+		 if (isLogin) {
+			 std::cout << "[Login] Starting login sequence..." << std::endl;
+			 
+			 // 1. Basic info
+			 std::cout << "[Login] Sending basic data..." << std::endl;
+			 sendBasicData();
+			 
+			 // 2. Store & Premium
+			 std::cout << "[Login] Sending store and premium data..." << std::endl;
+			 sendStoreHighlight();
+			 sendPremiumTrigger();
+			 
+			 // 3. Inventory & Containers
+			 std::cout << "[Login] Sending inventory data..." << std::endl;
+			 for (int i = CONST_SLOT_FIRST; i <= CONST_SLOT_LAST; ++i) {
+				 sendInventoryItem(static_cast<slots_t>(i), player->getInventoryItem(static_cast<slots_t>(i)));
 			 }
-			 else
-			 {
-				 vipStatus = VIPSTATUS_ONLINE;
+			 sendInventoryClientIds();
+			 
+			 // 4. Store & Coins
+			 std::cout << "[Login] Sending store prices and coin balance..." << std::endl;
+			 sendItemsPrice();
+			 sendCoinBalance();
+			 
+			 // 5. Prey & Loot
+			 std::cout << "[Login] Sending prey and loot data..." << std::endl;
+			 initPreyData();
+			 sendLootContainers();
+			 
+			 // 6. Game News & Icons
+			 std::cout << "[Login] Sending news and icons..." << std::endl;
+			 sendGameNews();
+			 player->sendIcons();
+ 
+			 // 7. Stats & Skills
+			 std::cout << "[Login] Sending stats and skills..." << std::endl;
+			 sendStats();
+			 sendSkills();
+			 
+			 // 8. World Light
+			 std::cout << "[Login] Sending world light..." << std::endl;
+			 sendWorldLight(g_game.getWorldLightInfo());
+			 sendCreatureLight(creature);
+			 
+			 // 9. VIP List
+			 std::cout << "[Login] Sending VIP list..." << std::endl;
+			 const std::forward_list<VIPEntry> &vipEntries = IOLoginData::getVIPEntries(player->getAccount());
+			 for (const VIPEntry &entry : vipEntries) {
+				 VipStatus_t vipStatus;
+				 Player *vipPlayer = g_game.getPlayerByGUID(entry.guid);
+				 if (!vipPlayer || vipPlayer->isInGhostMode()) {
+					 vipStatus = VIPSTATUS_OFFLINE;
+				 } else {
+					 vipStatus = VIPSTATUS_ONLINE;
+				 }
+				 sendVIP(entry.guid, entry.name, entry.description, entry.icon, entry.notify, vipStatus);
 			 }
  
-			 sendVIP(entry.guid, entry.name, entry.description, entry.icon, entry.notify, vipStatus);
+			 // 10. Client Check
+			 std::cout << "[Login] Sending client check..." << std::endl;
+			 player->sendClientCheck();
+			 
+			 // 11. Login Effect
+			 std::cout << "[Login] Sending login effect..." << std::endl;
+			 sendMagicEffect(pos, CONST_ME_TELEPORT);
+			 
+			 std::cout << "[Login] Login sequence completed." << std::endl;
 		 }
-	 }
-	 else
-	 {
-		 for (const VIPEntry &entry : vipEntries)
-		 {
-			 VipStatus_t vipStatus;
- 
-			 Player *vipPlayer = g_game.getPlayerByGUID(entry.guid);
-			 if (!vipPlayer || vipPlayer->isInGhostMode())
-			 {
-				 vipStatus = VIPSTATUS_OFFLINE;
-			 }
-			 else
-			 {
-				 vipStatus = VIPSTATUS_ONLINE;
-			 }
- 
-			 sendVIP(entry.guid, entry.name, entry.description, entry.icon, entry.notify, vipStatus);
-		 }
-	 }
- 
-	 sendInventoryClientIds();
-	 Item *slotItem = player->getInventoryItem(CONST_SLOT_BACKPACK);
-	 if (slotItem)
-	 {
-		 Container *mainBackpack = slotItem->getContainer();
-		 Container *hasQuickLootContainer = player->getLootContainer(OBJECTCATEGORY_DEFAULT);
-		 if (mainBackpack && !hasQuickLootContainer)
-		 {
-			 player->setLootContainer(OBJECTCATEGORY_DEFAULT, mainBackpack);
+	 } else {
+		 sendPendingStateEntered();
+		 sendEnterWorld();
+		 sendMapDescription(pos);
+		 
+		 if (isLogin) {
+			 sendInventoryItem(CONST_SLOT_HEAD, player->getInventoryItem(CONST_SLOT_HEAD));
+			 sendInventoryItem(CONST_SLOT_NECKLACE, player->getInventoryItem(CONST_SLOT_NECKLACE));
 			 sendInventoryItem(CONST_SLOT_BACKPACK, player->getInventoryItem(CONST_SLOT_BACKPACK));
+			 sendInventoryItem(CONST_SLOT_ARMOR, player->getInventoryItem(CONST_SLOT_ARMOR));
+			 sendInventoryItem(CONST_SLOT_RIGHT, player->getInventoryItem(CONST_SLOT_RIGHT));
+			 sendInventoryItem(CONST_SLOT_LEFT, player->getInventoryItem(CONST_SLOT_LEFT));
+			 sendInventoryItem(CONST_SLOT_LEGS, player->getInventoryItem(CONST_SLOT_LEGS));
+			 sendInventoryItem(CONST_SLOT_FEET, player->getInventoryItem(CONST_SLOT_FEET));
+			 sendInventoryItem(CONST_SLOT_RING, player->getInventoryItem(CONST_SLOT_RING));
+			 sendInventoryItem(CONST_SLOT_AMMO, player->getInventoryItem(CONST_SLOT_AMMO));
+			 
+			 sendStats();
+			 sendSkills();
+			 
+			 sendPremiumTrigger();
+			 
+			 sendMagicEffect(pos, CONST_ME_TELEPORT);
 		 }
 	 }
  
-	 if (version >= 1200)
-	 sendLootContainers();
-	 sendBasicData();
-	 initPreyData();
- 
-	 if (version >= 1200) {
-		 player->sendClientCheck();
-		 player->sendGameNews();
-	 }
-	 player->sendIcons();
- }
+	 loggedIn = true;
+ } 
  
  void ProtocolGame::sendMoveCreature(const Creature *creature, const Position &newPos, int32_t newStackPos, const Position &oldPos, int32_t oldStackPos, bool teleport)
  {
