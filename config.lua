@@ -45,7 +45,6 @@ maxContainer = 100
 --- Version
 clientVersion = 1310
 clientVersionStr = "13.10"
-allowClientOld = false
 
 -- Depot Limit
 freeDepotLimit = 2000

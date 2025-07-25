@@ -491,14 +491,9 @@
 		 return;
 	 }
  
-	 bool allowClientOld = g_config.getBoolean(ConfigManager::ALLOW_CLIENT_OLD);
-	 if (clientVersion != g_config.getNumber(ConfigManager::CLIENT_VERSION) && (allowClientOld && version != 1100))
-	 {
+	 if (clientVersion != g_config.getNumber(ConfigManager::CLIENT_VERSION)) {
 		 std::ostringstream ss;
-		 ss << "Only clients with protocol " << g_config.getString(ConfigManager::CLIENT_VERSION_STR);
-		 if (allowClientOld)
-			 ss << " and 10.00";
-		 ss << " allowed!";
+		 ss << "Only clients with protocol " << g_config.getString(ConfigManager::CLIENT_VERSION_STR) << " allowed!";
 		 disconnectClient(ss.str());
 		 return;
 	 }

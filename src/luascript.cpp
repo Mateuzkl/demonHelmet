@@ -2138,7 +2138,6 @@ void LuaScriptInterface::registerFunctions()
 	registerEnumIn("configKeys", ConfigManager::DEFAULT_PRIORITY)
 	registerEnumIn("configKeys", ConfigManager::MAP_AUTHOR)
 	registerEnumIn("configKeys", ConfigManager::STORE_IMAGES_URL)
-	registerEnumIn("configKeys", ConfigManager::ALLOW_CLIENT_OLD)
 	registerEnumIn("configKeys", ConfigManager::CLIENT_VERSION_STR)
 	registerEnumIn("configKeys", ConfigManager::MANASHIELD_BREAKABLE);
 
