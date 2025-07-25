@@ -1067,50 +1067,69 @@
 	 addGameTask(&Game::playerAutoWalk, player->getID(), path);
  }
  
- void ProtocolGame::parseSetOutfit(NetworkMessage &msg)
+ void ProtocolGame::parseSetOutfit(NetworkMessage& msg)
  {
-	 uint16_t startBufferPosition = msg.getBufferPosition();
-	 if (version >= 1200) {
-		 Module *outfitModule = g_modules->getEventByRecvbyte(0xD3, false);
-		 if (outfitModule)
-		 {
-			 outfitModule->executeOnRecvbyte(player, msg);
-		 }
-	 }
+	 uint8_t outfitType = msg.getByte();
  
-	 if (msg.getBufferPosition() == startBufferPosition)
-	 {
-		 uint8_t outfitType = 0;
-		 if (version >= 1200)
-			 outfitType = msg.getByte();
-		 Outfit_t newOutfit;
-		 newOutfit.lookType = msg.get<uint16_t>();
-		 newOutfit.lookHead = std::min<uint8_t>(132, msg.getByte());
-		 newOutfit.lookBody = std::min<uint8_t>(132, msg.getByte());
-		 newOutfit.lookLegs = std::min<uint8_t>(132, msg.getByte());
-		 newOutfit.lookFeet = std::min<uint8_t>(132, msg.getByte());
-		 newOutfit.lookAddons = msg.getByte();
-		 if (outfitType == 0)
-		 {
-			 newOutfit.lookMount = msg.get<uint16_t>();
-			 if (version >= 1200){
-				 newOutfit.lookMountHead = std::min<uint8_t>(132, msg.getByte());
-				 newOutfit.lookMountBody = std::min<uint8_t>(132, msg.getByte());
-				 newOutfit.lookMountLegs = std::min<uint8_t>(132, msg.getByte());
-				 newOutfit.lookMountFeet = std::min<uint8_t>(132, msg.getByte());
-				 newOutfit.lookFamiliarsType = msg.get<uint16_t>();
-			 }
+	 Outfit_t newOutfit;
+	 newOutfit.lookType = msg.get<uint16_t>();
+	 newOutfit.lookHead = msg.getByte();
+	 newOutfit.lookBody = msg.getByte();
+	 newOutfit.lookLegs = msg.getByte();
+	 newOutfit.lookFeet = msg.getByte();
+	 newOutfit.lookAddons = msg.getByte();
+ 
+	 // Set outfit window
+	 if (outfitType == 0) {
+		 newOutfit.lookMount = msg.get<uint16_t>();
+		 if (newOutfit.lookMount != 0) {
+			 newOutfit.lookMountHead = msg.getByte();
+			 newOutfit.lookMountBody = msg.getByte();
+			 newOutfit.lookMountLegs = msg.getByte();
+			 newOutfit.lookMountFeet = msg.getByte();
+		 } else {
+			 msg.skipBytes(4);
+ 
+			 // prevent mount color settings from resetting
+			 const Outfit_t& currentOutfit = player->getCurrentOutfit();
+			 newOutfit.lookMountHead = currentOutfit.lookMountHead;
+			 newOutfit.lookMountBody = currentOutfit.lookMountBody;
+			 newOutfit.lookMountLegs = currentOutfit.lookMountLegs;
+			 newOutfit.lookMountFeet = currentOutfit.lookMountFeet;
 		 }
-		 else if (outfitType == 1)
-		 {
-			 //This value probably has something to do with try outfit variable inside outfit window dialog
-			 //if try outfit is set to 2 it expects uint32_t value after mounted and disable mounts from outfit window dialog
-			 newOutfit.lookMount = 0;
-			 msg.get<uint32_t>();
-		 }
+ 
+		 		 newOutfit.lookFamiliarsType = msg.get<uint16_t>();
+		 bool randomizeMount = msg.getByte() == 0x01;
+
 		 addGameTask(&Game::playerChangeOutfit, player->getID(), newOutfit);
+ 
+	 } else if (outfitType == 1) {
+		 newOutfit.lookMount = 0;
+		 newOutfit.lookMountHead = msg.getByte();
+		 newOutfit.lookMountBody = msg.getByte();
+		 newOutfit.lookMountLegs = msg.getByte();
+		 newOutfit.lookMountFeet = msg.getByte();
+		 // store offerId or similar (not yet implemented)
+ 
+	 } else if (outfitType == 2) {
+		 Position pos = msg.getPosition();
+		 uint16_t spriteId = msg.get<uint16_t>();
+		 uint8_t stackpos = msg.getByte();
+ 
+		 newOutfit.lookMount = msg.get<uint16_t>();
+		 newOutfit.lookMountHead = msg.getByte();
+		 newOutfit.lookMountBody = msg.getByte();
+		 newOutfit.lookMountLegs = msg.getByte();
+		 newOutfit.lookMountFeet = msg.getByte();
+		 newOutfit.lookFamiliarsType = msg.get<uint16_t>();
+ 
+		 		 Direction direction = static_cast<Direction>(msg.getByte());
+		 bool podiumVisible = msg.getByte() == 1;
+
+		 // TODO: Implement podium editing functionality
+		 // addGameTask(&Game::playerEditPodium, player->getID(), newOutfit, pos, stackpos, spriteId, podiumVisible, direction);
 	 }
- }
+ } 
  
  void ProtocolGame::parseToggleMount(NetworkMessage &msg)
  {
@@ -2252,10 +2271,9 @@
 	 writeToOutputBuffer(msg);
  }
  
- void ProtocolGame::sendCreatureOutfit(const Creature *creature, const Outfit_t &outfit)
+ void ProtocolGame::sendCreatureOutfit(const Creature* creature, const Outfit_t& outfit)
  {
-	 if (!canSee(creature))
-	 {
+	 if (!canSee(creature)) {
 		 return;
 	 }
  
@@ -2263,13 +2281,6 @@
 	 msg.addByte(0x8E);
 	 msg.add<uint32_t>(creature->getID());
 	 AddOutfit(msg, outfit);
-	 if (version >= 1200 && outfit.lookMount != 0)
-	 {
-		 msg.addByte(outfit.lookMountHead);
-		 msg.addByte(outfit.lookMountBody);
-		 msg.addByte(outfit.lookMountLegs);
-		 msg.addByte(outfit.lookMountFeet);
-	 }
 	 writeToOutputBuffer(msg);
  }
  
@@ -5156,56 +5167,50 @@
  
  void ProtocolGame::sendOutfitWindow()
  {
+	 const auto& outfits = Outfits::getInstance().getOutfits(player->getSex());
+	 if (outfits.size() == 0) {
+		 return;
+	 }
+ 
 	 NetworkMessage msg;
 	 msg.addByte(0xC8);
  
-	 bool mounted = false;
 	 Outfit_t currentOutfit = player->getDefaultOutfit();
+ 
+	 if (currentOutfit.lookType == 0) {
+		 Outfit_t newOutfit;
+		 newOutfit.lookType = outfits.front().lookType;
+		 currentOutfit = newOutfit;
+	 }
+ 
 	 Mount* currentMount = g_game.mounts.getMountByID(player->getCurrentMount());
 	 if (currentMount) {
-		 mounted = (currentOutfit.lookMount == currentMount->clientId);
 		 currentOutfit.lookMount = currentMount->clientId;
+	 }
+ 
+	 bool mounted;
+	 if (player->wasMounted) {
+		 mounted = currentOutfit.lookMount != 0;
+	 } else {
+		 mounted = player->isMounted();
 	 }
  
 	 AddOutfit(msg, currentOutfit);
  
-	 if(version >= 1200){
+	 // mount color bytes are required here regardless of having one
+	 if (currentOutfit.lookMount == 0) {
 		 msg.addByte(currentOutfit.lookMountHead);
 		 msg.addByte(currentOutfit.lookMountBody);
 		 msg.addByte(currentOutfit.lookMountLegs);
 		 msg.addByte(currentOutfit.lookMountFeet);
-		 msg.add<uint16_t>(currentOutfit.lookFamiliarsType);
 	 }
  
-	 auto startOutfits = msg.getBufferPosition();
-	 uint16_t limitOutfits = version >= 1200 ? std::numeric_limits<uint16_t>::max() : 150;
-	 uint16_t outfitSize = 0;
-	 msg.skipBytes(version >= 1200 ? 2 : 1);
+	 msg.add<uint16_t>(0); // current familiar looktype
  
+	 std::vector<ProtocolOutfit> protocolOutfits;
 	 if (player->isAccessPlayer()) {
-		 msg.add<uint16_t>(75);
-		 msg.addString("Gamemaster");
-		 msg.addByte(0);
-		 if (version >= 1200)
-			 msg.addByte(0x00);
-		 ++outfitSize;
- 
-		 msg.add<uint16_t>(266);
-		 msg.addString("Customer Support");
-		 msg.addByte(0);
-		 if (version >= 1200)
-			 msg.addByte(0x00);
-		 ++outfitSize;
- 
-		 msg.add<uint16_t>(302);
-		 msg.addString("Community Manager");
-		 msg.addByte(0);
-		 if (version >= 1200)
-			 msg.addByte(0x00);
-		 ++outfitSize;
+		 protocolOutfits.emplace_back("Gamemaster", 75, 0);
 	 }
- 
-	 const auto& outfits = Outfits::getInstance().getOutfits(player->getSex());
  
 	 for (const Outfit& outfit : outfits) {
 		 uint8_t addons;
@@ -5213,81 +5218,41 @@
 			 continue;
 		 }
  
+		 protocolOutfits.emplace_back(outfit.name, outfit.lookType, addons);
+	 }
+ 
+	 msg.add<uint16_t>(protocolOutfits.size());
+	 for (const ProtocolOutfit& outfit : protocolOutfits) {
 		 msg.add<uint16_t>(outfit.lookType);
 		 msg.addString(outfit.name);
-		 msg.addByte(addons);
-		 if (version >= 1200)
-			 msg.addByte(0x00);
-		 if (++outfitSize == limitOutfits) {
-			 break;
-		 }
+		 msg.addByte(outfit.addons);
+		 msg.addByte(0x00); // mode: 0x00 - available, 0x01 store (requires U32 store offerId), 0x02 golden outfit
+							// tooltip (hardcoded)
 	 }
  
-	 auto endOutfits = msg.getBufferPosition();
-	 msg.setBufferPosition(startOutfits);
-	 if (version >= 1200)
-		 msg.add<uint16_t>(outfitSize);
-	 else
-		 msg.addByte(static_cast<uint8_t>(outfitSize));
-	 msg.setBufferPosition(endOutfits);
- 
-	 auto startMounts = msg.getBufferPosition();
-	 uint16_t limitMounts = version >= 1200 ? std::numeric_limits<uint16_t>::max() : 150;
-	 uint16_t mountSize = 0;
-	 msg.skipBytes(version >= 1200 ? 2 : 1);
- 
-	 const auto& mounts = g_game.mounts.getMounts();
-	 for (const Mount& mount : mounts) {
+	 std::vector<const Mount*> mounts;
+	 for (const Mount& mount : g_game.mounts.getMounts()) {
 		 if (player->hasMount(&mount)) {
-			 msg.add<uint16_t>(mount.clientId);
-			 msg.addString(mount.name);
-			 if (version >= 1200)
-				 msg.addByte(0x00);
-			 if (++mountSize == limitMounts) {
-				 break;
-			 }
+			 mounts.push_back(&mount);
 		 }
 	 }
  
-	 auto endMounts = msg.getBufferPosition();
-	 msg.setBufferPosition(startMounts);
-	 if (version >= 1200)
-		 msg.add<uint16_t>(mountSize);
-	 else
-		 msg.addByte(static_cast<uint8_t>(mountSize));
-	 msg.setBufferPosition(endMounts);
- 
-	 if (version >= 1200) {
-		 auto startFamiliars = msg.getBufferPosition();
-		 uint16_t limitFamiliars = std::numeric_limits<uint16_t>::max();
-		 uint16_t familiarSize = 0;
-		 msg.skipBytes(2);
- 
-		 const auto& familiars = Familiars::getInstance().getFamiliars(player->getVocationId());
- 
-		 for (const Familiar& familiar : familiars) {
-			 if (!player->getFamiliar(familiar)) {
-				 continue;
-			 }
- 
-			 msg.add<uint16_t>(familiar.lookType);
-			 msg.addString(familiar.name);
-			 msg.addByte(0x00);
-			 if (++familiarSize == limitFamiliars) {
-					 break;
-			 }
-		 }
- 
-		 auto endFamiliars = msg.getBufferPosition();
-		 msg.setBufferPosition(startFamiliars);
-		 msg.add<uint16_t>(familiarSize);
-		 msg.setBufferPosition(endFamiliars);
- 
-		 msg.addByte(0x00); //Try outfit
-		 msg.addByte(mounted ? 0x01 : 0x00);
-		 msg.addByte(0x00); // randomize mount (bool)
+	 msg.add<uint16_t>(mounts.size());
+	 for (const Mount* mount : mounts) {
+		 msg.add<uint16_t>(mount->clientId);
+		 msg.addString(mount->name);
+		 msg.addByte(0x00); // mode: 0x00 - available, 0x01 store (requires U32 store offerId)
 	 }
  
+	 msg.add<uint16_t>(0x00); // familiars.size()
+	 // size > 0
+	 // U16 looktype
+	 // String name
+	 // 0x00 // mode: 0x00 - available, 0x01 store (requires U32 store offerId)
+ 
+	 msg.addByte(0x00); // Try outfit mode (?)
+	 msg.addByte(mounted ? 0x01 : 0x00);
+	 msg.addByte(player->randomizeMount ? 0x01 : 0x00);
 	 writeToOutputBuffer(msg);
  }
  
